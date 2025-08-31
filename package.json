@@ -18,5 +18,13 @@
     "tsup": "^7.0.0",
     "@types/react": "^18.0.0",
     "@types/node": "^18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sawa-Yoshioka/react-server-form.git"
+  },
+  "homepage": "https://github.com/Sawa-Yoshioka/react-server-form",
+  "bugs": {
+    "url": "https://github.com/Sawa-Yoshioka/react-server-form/issues"
   }
 }
