@@ -11,11 +11,28 @@ type ServerFormState<T> = Partial<T> & {
 
 type UseServerFormOptions<TSchema extends z.ZodTypeAny> = {
   schema?: TSchema;
-  action: (data: z.infer<TSchema>) => Promise<any>;
+  action: TSchema extends undefined 
+    ? (helpers: ReturnType<typeof createHelpers>) => Promise<any>
+    : (data: z.infer<TSchema>) => Promise<any>;
   initialState?: Partial<z.infer<TSchema>>;
-  onSuccess?: (data: z.infer<TSchema>) => void;
-  onError?: (error: any) => void;
 };
+
+function createHelpers(formData: FormData) {
+  return {
+    string: (key: string) => formData.get(key)?.toString() ?? "",
+    number: (key: string) => Number(formData.get(key) ?? 0),
+    boolean: (key: string) => formData.get(key) === "true",
+    array: (key: string) => formData.getAll(key).map(v => v.toString()),
+    file: (key: string) => formData.get(key) as File | null,
+    build: (builder: (helpers: any) => any) => builder({
+      string: (key: string) => formData.get(key)?.toString() ?? "",
+      number: (key: string) => Number(formData.get(key) ?? 0),
+      boolean: (key: string) => formData.get(key) === "true",
+      array: (key: string) => formData.getAll(key).map(v => v.toString()),
+      file: (key: string) => formData.get(key) as File | null,
+    }),
+  };
+}
 
 export function useServerForm<TSchema extends z.ZodTypeAny>({
   schema,
@@ -35,48 +52,75 @@ export function useServerForm<TSchema extends z.ZodTypeAny>({
     prevState: ServerFormState<SchemaType>,
     formData: FormData
   ): Promise<ServerFormState<SchemaType>> => {
-    if (!schema) return prevState;
+    if (schema) {
+      // Zodスキーマがある場合：自動変換 + バリデーション
+      const raw = Object.fromEntries(
+        Array.from(formData.entries()).map(([key, value]) => [
+          key,
+          value instanceof File ? value : String(value)
+        ])
+      );
+      
+      const parsed = schema.safeParse(raw);
+      
+      if (!parsed.success) {
+        return {
+          ...prevState,
+          errors: parsed.error.flatten().fieldErrors as Record<
+            keyof SchemaType,
+            string[]
+          >,
+          success: false,
+          pending: false,
+        };
+      }
 
-    const raw = Object.fromEntries(
-      Array.from(formData.entries()).map(([key, value]) => [
-        key,
-        value instanceof File ? value : String(value)
-      ])
-    );
-    const parsed = schema.safeParse(raw);
-
-    if (!parsed.success) {
-      return {
-        ...prevState,
-        errors: parsed.error.flatten().fieldErrors as Record<
-          keyof SchemaType,
-          string[]
-        >,
-        success: false,
-        pending: false,
-      };
-    }
-
-    try {
-      await action(parsed.data);
-      return Object.assign({}, parsed.data, {
-        errors: {},
-        pending: false,
-        success: true,
-      });
-    } catch (error) {
-      return {
-        ...prevState,
-        errors: { 
-          ...prevState.errors,
-        },
-        pending: false,
-        success: false,
-      };
+      try {
+        await action(parsed.data as any); // バリデーション済みオブジェクト
+        return Object.assign({}, parsed.data, {
+          errors: {},
+          pending: false,
+          success: true,
+        });
+      } catch (error) {
+        return {
+          ...prevState,
+          errors: { 
+            ...prevState.errors,
+          },
+          pending: false,
+          success: false,
+        };
+      }
+    } else {
+      // Zodスキーマがない場合：ヘルパー関数を提供
+      const helpers = createHelpers(formData);
+      
+      try {
+        await (action as any)(helpers); // ヘルパー関数を渡す
+        return {
+          ...prevState,
+          errors: {},
+          pending: false,
+          success: true,
+        };
+      } catch (error) {
+        return {
+          ...prevState,
+          errors: { 
+            ...prevState.errors,
+          },
+          pending: false,
+          success: false,
+        };
+      }
     }
   };
 
-  const [state, formAction, pending] = useActionState(serverAction, initial as Awaited<ServerFormState<SchemaType>>);
+  const [state, formAction, pending] = useActionState(
+    serverAction, 
+    initial as Awaited<ServerFormState<SchemaType>>
+  );
 
   const errorMessage = new Proxy(
     {},
