@@ -6,21 +6,29 @@
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "license": "MIT",
-  "files": ["dist"],
-  "keywords": ["react", "form", "server", "validation", "zod"],
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "react",
+    "form",
+    "server",
+    "validation",
+    "zod"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
     "dev": "tsup src/index.ts --format esm,cjs --dts --watch"
   },
   "peerDependencies": {
-    "react": ">=18",
+    "react": "^19.1.1",
     "react-dom": ">=18"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
+    "@types/node": "^18.0.0",
+    "@types/react": "^19.1.1",
     "tsup": "^7.0.0",
-    "@types/react": "^18.0.0",
-    "@types/node": "^18.0.0"
+    "typescript": "^5.0.0"
   },
   "repository": {
     "type": "git",
@@ -29,5 +37,8 @@
   "homepage": "https://github.com/Sawa-Yoshioka/react-server-form",
   "bugs": {
     "url": "https://github.com/Sawa-Yoshioka/react-server-form/issues"
+  },
+  "dependencies": {
+    "zod": "^4.1.5"
   }
 }
